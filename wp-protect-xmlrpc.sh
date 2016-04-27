@@ -1,32 +1,43 @@
 #!/bin/bash
 
 # sample crontab record
-# 0 * * * * wp-protect-xmlrpc/wp-protect-xmlrpc.sh
+#
+# */10 * * * * wp-protect-xmlrpc/wp-protect-xmlrpc.sh
 
 set -e
 
-function scan_log() {
-	log_file="$1"
+LOG_FILE="/var/log/apache2/access.log"
+ANCHOR_TEXT="POST /xmlrpc.php"
+MAX_REQUESTS="100"
 
-	grep -F 'xmlrpc.php' "$log_file" | \
-	awk '{ print $1 }' | \
-	sort | \
-	uniq -c | \
-	while read count ip; do
-		if [ $count -gt 100 ]; then
-			if [ ! already_banned $ip ]; then
-				echo "$ip has made $count requests, will block"
-				iptables -A INPUT -s $ip -j DROP
-			fi
-		fi
-	done
+function scan_log() {
+        log_file="$1"
+
+        grep -F "$ANCHOR_TEXT" "$log_file" | \
+        cut -d ' ' -f 1 | \
+        sort | \
+        uniq -c | \
+        while read request_count ip; do
+                if [ $request_count -gt $MAX_REQUESTS ]; then
+                        if ! already_banned $ip; then
+                                echo "$ip has made $request_count requests, will block"
+                                ban $ip
+                        fi
+                fi
+        done
 }
 
 function already_banned() {
-	ip="$1"
+        ip="$1"
 
-	iptables -L | \
-	grep --silent "DROP .* $ip"
+        /sbin/iptables -L | \
+        grep --silent "DROP .* $ip"
 }
 
-#scan_log /var/log/apache2/access.log
+function ban() {
+        ip="$1"
+
+        /sbin/iptables -A INPUT -s $ip -j DROP
+}
+
+scan_log $LOG_FILE
