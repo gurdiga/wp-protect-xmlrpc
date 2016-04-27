@@ -30,7 +30,7 @@ function scan_log() {
 function already_banned() {
         ip="$1"
 
-        /sbin/iptables -L | \
+        /sbin/iptables -n -L | \
         grep --silent "DROP .* $ip"
 }
 
