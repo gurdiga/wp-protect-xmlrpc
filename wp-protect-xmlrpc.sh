@@ -1,5 +1,8 @@
 #!/bin/bash
 
+# sample crontab record
+# 0 * * * * wp-protect-xmlrpc/wp-protect-xmlrpc.sh
+
 set -e
 
 function scan_log() {
@@ -12,7 +15,8 @@ function scan_log() {
 	while read count ip; do
 		if [ $count -gt 100 ]; then
 			if [ ! already_banned $ip ]; then
-				echo "$ip has made $count requests"
+				echo "$ip has made $count requests, will block"
+				iptables -A INPUT -s $ip -j DROP
 			fi
 		fi
 	done
